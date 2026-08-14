@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>心願要了嗎</title>
+    <title>Annie的心願要了清單</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -151,9 +151,16 @@
             </div>
 
             <!-- List area -->
-            <ul id="wishList" class="space-y-3">
+            <ul id="wishList" class="space-y-3 mb-6">
                 <!-- Items will be injected here by JS -->
             </ul>
+
+            <!-- 傳送/分享按鈕 -->
+            <div class="flex justify-center mt-6 pt-6 border-t-2 border-dashed border-gray-200">
+                <button onclick="openShareModal()" class="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform transition active:scale-95 flex items-center">
+                    <i class="fa-solid fa-paper-plane mr-2 text-xl"></i> 匯出清單 Send 畀同事
+                </button>
+            </div>
         </div>
         
         <!-- Footer -->
@@ -170,6 +177,28 @@
         <p class="mt-4 text-gray-600 font-bold" id="completedWishText"></p>
     </div>
     
+    <!-- Share Modal (分享視窗) -->
+    <div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity opacity-0">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform" id="shareModalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-gray-800 flex items-center"><i class="fa-solid fa-share-nodes text-green-500 mr-2"></i> 傳送最新戰況</h3>
+                <button onclick="closeShareModal()" class="text-gray-400 hover:text-gray-600 transition-colors"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <p class="text-gray-600 text-sm font-bold mb-6">系統會將倒數時間同心願完成進度，自動變做文字 Send 出去！</p>
+            <div class="space-y-3">
+                <button onclick="shareWhatsApp()" class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-colors">
+                    <i class="fa-brands fa-whatsapp text-xl mr-2"></i> WhatsApp 傳送
+                </button>
+                <button onclick="shareEmail()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-envelope text-xl mr-2"></i> Email 傳送
+                </button>
+                <button onclick="copyShareText()" id="copyBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-colors">
+                    <i class="fa-regular fa-copy text-xl mr-2"></i> 淨係複製文字
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confetti Container -->
     <div id="confettiContainer" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
 
@@ -311,6 +340,94 @@
                 
                 confettiContainer.appendChild(confetti);
             }
+        }
+
+        // --- 分享與傳送邏輯 ---
+        const shareModal = document.getElementById('shareModal');
+        const shareModalContent = document.getElementById('shareModalContent');
+
+        function openShareModal() {
+            shareModal.classList.remove('hidden');
+            // 觸發重繪以播放動畫
+            void shareModal.offsetWidth;
+            shareModal.classList.remove('opacity-0');
+            shareModalContent.classList.remove('scale-95');
+        }
+
+        function closeShareModal() {
+            shareModal.classList.add('opacity-0');
+            shareModalContent.classList.add('scale-95');
+            setTimeout(() => {
+                shareModal.classList.add('hidden');
+                document.getElementById('copyBtn').innerHTML = '<i class="fa-regular fa-copy text-xl mr-2"></i> 淨係複製文字';
+                document.getElementById('copyBtn').classList.remove('bg-green-100', 'text-green-700');
+            }, 300);
+        }
+
+        // 自動產生要分享的文字內容
+        function generateShareText() {
+            const heroName = document.getElementById('heroNameInput').value.trim() || 'Annie';
+            const deptName = document.getElementById('deptNameInput').value.trim() || 'URS Office';
+            const d = document.getElementById('days').textContent;
+            const h = document.getElementById('hours').textContent;
+            const m = document.getElementById('minutes').textContent;
+            
+            let text = `🎉【${heroName} 嘅 ${deptName} 逃脫計畫進度】🎉\n`;
+            text += `⏳ 距離自由解放仲有：${d}日 ${h}小時 ${m}分鐘！\n\n`;
+            text += `📝 調職前必做大清單：\n`;
+            
+            if (wishes.length === 0) {
+                text += `(咦？暫時未有心願喎！)\n`;
+            } else {
+                wishes.forEach((wish) => {
+                    const status = wish.completed ? '✅ (已了結！)' : '⬜';
+                    text += `${status} ${wish.text}\n`;
+                });
+            }
+            
+            text += `\n✨ 祝 ${heroName} 前程錦繡，日日有食神！🏃‍♀️💨`;
+            return text;
+        }
+
+        function shareWhatsApp() {
+            const text = generateShareText();
+            // 在新分頁打開 WhatsApp 網頁版或應用程式
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+            closeShareModal();
+        }
+
+        function shareEmail() {
+            const text = generateShareText();
+            const heroName = document.getElementById('heroNameInput').value.trim() || 'Annie';
+            const subject = `[機密進度] ${heroName} 的心願要了清單！`;
+            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, '_blank');
+            closeShareModal();
+        }
+
+        function copyShareText() {
+            const text = generateShareText();
+            const copyBtn = document.getElementById('copyBtn');
+            
+            // 建立一個臨時的 textarea 來複製文字 (兼容性最好)
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                copyBtn.innerHTML = '<i class="fa-solid fa-check text-green-500 text-xl mr-2"></i> 已經 Copy 咗啦！';
+                copyBtn.classList.add('bg-green-100', 'text-green-700');
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fa-regular fa-copy text-xl mr-2"></i> 淨係複製文字';
+                    copyBtn.classList.remove('bg-green-100', 'text-green-700');
+                    closeShareModal();
+                }, 2000);
+            } catch (err) {
+                console.error('複製失敗', err);
+            }
+            document.body.removeChild(textArea);
         }
 
         // --- 倒數計時器邏輯 ---
