@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>心願要了嗎</title>
+    <title>Annie的心願要了清單</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -220,6 +220,52 @@
             { id: 4, text: '大大聲講一句：「我唔撈啦！」 🗣️', completed: false }
         ];
 
+        // --- 瀏覽器本地存檔邏輯 (LocalStorage) ---
+        const STORAGE_KEY = 'annie_wishlist_local_data';
+
+        function saveToLocalStorage() {
+            const data = {
+                wishes: wishes,
+                heroName: heroNameInput.value,
+                deptName: deptNameInput.value,
+                targetDate: targetDateInput.value
+            };
+            // 將資料轉成文字並存入瀏覽器
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    if (data.wishes) wishes = data.wishes;
+                    if (data.heroName) {
+                        heroNameInput.value = data.heroName;
+                        nameDisplays.forEach(el => el.textContent = data.heroName);
+                    }
+                    if (data.deptName) {
+                        deptNameInput.value = data.deptName;
+                        deptDisplays.forEach(el => el.textContent = data.deptName);
+                    }
+                    if (data.targetDate) {
+                        targetDateInput.value = data.targetDate;
+                    }
+                } catch (e) {
+                    console.error("讀取存檔失敗", e);
+                }
+            }
+        }
+
+        // 自動存檔防抖動 (Debounce)，避免打字時每一秒 Save 幾百次
+        let saveTimeout = null;
+        function triggerSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveToLocalStorage(); // 改為儲存落瀏覽器
+            }, 500); 
+        }
+
         // 初始化渲染清單
         function renderWishes() {
             wishList.innerHTML = '';
@@ -271,6 +317,7 @@
                 wishes.push(newWish);
                 wishInput.value = '';
                 renderWishes();
+                triggerSave(); // 觸發自動存檔
             } else {
                 // 簡單提示替換 alert
                 wishInput.placeholder = "喂！寫啲嘢先啦！";
@@ -292,6 +339,7 @@
                 }
                 wish.completed = !wish.completed;
                 renderWishes();
+                triggerSave(); // 觸發自動存檔
             }
         }
 
@@ -299,6 +347,7 @@
         function deleteWish(id) {
             wishes = wishes.filter(w => w.id !== id);
             renderWishes();
+            triggerSave(); // 觸發自動存檔
         }
 
         // --- 搞笑特效邏輯 ---
@@ -453,6 +502,9 @@
 
         // 初始化日期輸入框
         function initDateInput() {
+            // 如果從瀏覽器載入後已經有自訂日期，就唔好覆蓋佢
+            if (targetDateInput.value) return; 
+
             const defaultDate = getDefaultLastDay();
             // 格式化為 YYYY-MM-DD 以便 input type="date" 使用
             const year = defaultDate.getFullYear();
@@ -502,6 +554,7 @@
              clearInterval(timerInterval);
              updateCountdown();
              timerInterval = setInterval(updateCountdown, 1000);
+             triggerSave(); // 觸發自動存檔
         });
 
         heroNameInput.addEventListener('input', () => {
@@ -509,18 +562,21 @@
             nameDisplays.forEach(el => el.textContent = newName);
             // 確保倒數結束時，替換文字中的名字也會隨時更新
             updateCountdown(); 
+            triggerSave(); // 觸發自動存檔
         });
 
         deptNameInput.addEventListener('input', () => {
             const newDept = deptNameInput.value.trim() || 'URS Office';
             deptDisplays.forEach(el => el.textContent = newDept);
+            triggerSave(); // 觸發自動存檔
         });
 
         // 頁面加載完成後執行
         window.onload = () => {
-            renderWishes();
-            initDateInput();
-            updateCountdown();
+            loadFromLocalStorage(); // 1. 先從瀏覽器讀取存檔
+            initDateInput();        // 2. 如果冇存檔日期，先用預設日期
+            renderWishes();         // 3. 渲染清單
+            updateCountdown();      // 4. 更新倒數
             timerInterval = setInterval(updateCountdown, 1000);
         };
 
